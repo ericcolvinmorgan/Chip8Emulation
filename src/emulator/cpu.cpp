@@ -74,6 +74,11 @@ WORD CPU::fetch()
 
 void CPU::execute(WORD opcode)
 {
+    if(_sp > 12)
+    {
+        printf("SP - %d\n", _sp);
+    }
+
     //Below switch comments based opcode table as detailed at https://en.wikipedia.org/wiki/CHIP-8
     switch (opcode.highByte & 0xF0)
     {
@@ -189,10 +194,31 @@ void CPU::execute(WORD opcode)
             break;
 
         case 0x04:
-            _v[x] += _v[y];
-            break;
+        {
+            uint16_t value = _v[x] + _v[y];
+
+            if ((value & 0xff00) > 0)
+            {
+                _v[0xf] = 1;
+            }
+            else
+            {
+                _v[0xf] = 0;
+            }
+
+            _v[x] = (value & 0x00ff);
+        }
+        break;
 
         case 0x05:
+            if (_v[x] > _v[y])
+            {
+                _v[0xf] = 1;
+            }
+            else
+            {
+                _v[0xf] = 0;
+            }
             _v[x] -= _v[y];
             break;
 
@@ -202,11 +228,19 @@ void CPU::execute(WORD opcode)
             break;
 
         case 0x07:
-            _v[x] >>= _v[y] - _v[x];
+            if (_v[y] > _v[x])
+            {
+                _v[0xf] = 1;
+            }
+            else
+            {
+                _v[0xf] = 0;
+            }
+            _v[x] = _v[y] - _v[x];
             break;
 
         case 0x0E:
-            _v[0x0f] = (_v[x] & 0b10000000);
+            _v[0x0f] = (_v[x] & 0b10000000) >> 7;
             _v[x] <<= 1;
             break;
 
@@ -255,26 +289,43 @@ void CPU::execute(WORD opcode)
     {
         int x = _v[(opcode.highByte & 0x0F)];
         int y = _v[(opcode.lowByte & 0xF0) >> 4];
+        _v[0xf] = 0;
 
         for (int8_t spritePos = 0; spritePos < ((opcode.lowByte & 0x0F)); spritePos++, y++)
         {
-            BYTE spriteLine = _memory[_i + spritePos];
-            int scanLineStart = (y * CHIP_SCREEN_WIDTH);
-            int scanLineEnd = (y * CHIP_SCREEN_WIDTH) + CHIP_SCREEN_WIDTH;
-            int screenPos = (y * CHIP_SCREEN_WIDTH) + x;
-
-            for (int8_t bitPos = 0; bitPos < 8; bitPos++)
+            if (y < CHIP_SCREEN_HEIGHT)
             {
-                _screenPixels.set(screenPos, _screenPixels.test(screenPos) ^ (spriteLine & 0b10000000));
-                spriteLine <<= 1;
+                BYTE spriteLine = _memory[_i + spritePos];
+                int scanLineStart = (y * CHIP_SCREEN_WIDTH);
+                int scanLineEnd = (y * CHIP_SCREEN_WIDTH) + (CHIP_SCREEN_WIDTH - 1);
+                int screenPos = (y * CHIP_SCREEN_WIDTH) + x;
 
-                if (screenPos < scanLineEnd)
+                for (int8_t bitPos = 0; bitPos < 8; bitPos++)
                 {
+                    if(screenPos >= CHIP_SCREEN_HEIGHT * CHIP_SCREEN_WIDTH)
+                    {
+                        screenPos = CHIP_SCREEN_HEIGHT * CHIP_SCREEN_WIDTH - 1;
+                    }
+                    
+                    bool cVal = getPixel(screenPos);
+                    bool nVal = (spriteLine & 0b10000000);
+                    if (cVal && nVal)
+                    {
+                        _v[0xf] = 1;
+                        _screenPixels.set(screenPos, 0);
+                    }
+                    else
+                    {
+                        _screenPixels.set(screenPos, cVal ^ nVal);
+                    }
+
                     screenPos++;
-                }
-                else
-                {
-                    screenPos = scanLineStart;
+                    spriteLine <<= 1;
+
+                    if (screenPos > scanLineEnd)
+                    {
+                        screenPos = scanLineStart;
+                    }
                 }
             }
         }
@@ -285,7 +336,23 @@ void CPU::execute(WORD opcode)
     // EXA1 	KeyOp 	if(key()!=Vx) 	Skips the next instruction if the key stored in VX isn't pressed. (Usually the next instruction is a jump to skip a code block)
     case 0xE0:
     {
-        throw std::logic_error("Not Implemented - E");
+        int x = _v[(opcode.highByte & 0x0F)];
+        switch (opcode.lowByte)
+        {
+        case (BYTE)0x9E:
+            if (_keyPressed[x])
+                _pc += 2;
+            break;
+
+        case (BYTE)0xA1:
+            if (!_keyPressed[x])
+                _pc += 2;
+            break;
+
+        default:
+            throw std::logic_error("Not Implemented - E");
+            break;
+        }
     }
     break;
 
@@ -311,33 +378,41 @@ void CPU::execute(WORD opcode)
         switch (opcode.lowByte)
         {
         case (BYTE)0x07:
-            throw std::logic_error("Not Implemented - 07");
+            _v[x] = _dt;
             break;
 
         case (BYTE)0x0A:
-            throw std::logic_error("Not Implemented - 0A");
+            _pc -= 2;
+            for (int8_t key = 0; key < 0xf + 1; key++)
+            {
+                if (_keyPressed[key])
+                {
+                    _pc += 2;
+                    break;
+                }
+            }
             break;
 
         case (BYTE)0x15:
-            throw std::logic_error("Not Implemented - 15");
+            _dt = _v[x]; 
             break;
 
         case (BYTE)0x18:
-            throw std::logic_error("Not Implemented - 18");
+            _st = _v[x];
             break;
 
         case (BYTE)0x1E:
-            throw std::logic_error("Not Implemented - 1E");
+            _i += _v[x];
             break;
 
         case (BYTE)0x29:
-            _i = (opcode.highByte & 0x0F) * 5;
+            _i = _v[x] * 5;
             break;
 
         case (BYTE)0x33:
         {
             uint8_t value = _v[x];
-            for (int pos = 2; pos >= 0 && value > 0; pos--)
+            for (int pos = 2; pos >= 0; pos--)
             {
                 _memory[_i + pos] = (value % 10);
                 value /= 10;
@@ -374,4 +449,18 @@ void CPU::setKeyPressed(uint8_t key, bool pressed)
     {
         _keyPressed[key] = pressed;
     }
+}
+
+void CPU::decrementDelayTimer(BYTE step)
+{
+    _dt -= step;
+    if(_dt < 0)
+        _dt = 0;
+}
+
+void CPU::decrementSoundTimer(BYTE step)
+{
+    _st -= step;
+    if(_st < 0)
+        _st = 0;
 }

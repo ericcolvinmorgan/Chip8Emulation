@@ -24,6 +24,8 @@ public:
     void execute(WORD opcode);
     bool getPixel(size_t pos) { return _screenPixels.test(pos); };
     void setKeyPressed(uint8_t key, bool pressed);
+    void decrementDelayTimer(BYTE step);
+    void decrementSoundTimer(BYTE step);
 
 private:
     uint16_t _stack[16] = { 0 };

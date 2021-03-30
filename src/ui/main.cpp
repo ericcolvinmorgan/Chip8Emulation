@@ -120,8 +120,9 @@ int main(int argc, char *args[])
 		//cpu.loadROM("../../roms/TestRoms/IBM Logo.ch8");
 		//cpu.loadROM("../../roms/TestRoms/corax89_test_opcode.ch8");
 		//cpu.loadROM("../../roms/TestRoms/bc_test.ch8");
-		cpu.loadROM("../../roms/TestRoms/SCTEST");
 		//cpu.loadROM("../../roms/Chip-8 Programs/Random Number Test [Matthew Mikolay, 2010].ch8");
+		//cpu.loadROM("../../roms/Chip-8 Games/Space Invaders [David Winter].ch8");		
+		//cpu.loadROM("../../roms/Chip-8 Games/Pong [Paul Vervalin, 1990].ch8");
 
 		//While application is running
 		while (!quit)
@@ -151,7 +152,10 @@ int main(int argc, char *args[])
 
 			//Process Command
 			WORD opcode = cpu.fetch();
+			printf("%x\n", opcode);
 			cpu.execute(opcode);
+			cpu.decrementDelayTimer(1);
+			cpu.decrementSoundTimer(1);
 
 			//Clear screen
 			SDL_RenderClear(gRenderer);
