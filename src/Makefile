@@ -15,8 +15,15 @@ else
 	TARGET_EXTENSION=.out
 endif
 
-#OBJS specifies which files to compile as part of the project
-OBJS = ./ui/main.cpp ./emulator/cpu.cpp
+BUILDDIR = build
+EXE_FILE = Chip8Emu
+
+#SRCS specifies which source files to compile as part of the project
+SRCS = ./ui/main.cpp ./emulator/cpu.cpp
+
+#OBJS specifies which objects files to compile as part of the project
+#OBJS=$(SRCS:.cpp=.o)
+OBJS= ./$(BUILDDIR)/main.o ./$(BUILDDIR)/cpu.o
 
 #CC specifies which compiler we're using
 CC = g++
@@ -36,11 +43,13 @@ COMPILER_FLAGS = -w -g
 #LINKER_FLAGS specifies the libraries we're linking against
 LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2
 
-BUILDDIR = build
-EXE_FILE = Chip8Emu
+all: $(SRCS)
+	$(CC) $(SRCS) $(INCLUDE_PATHS) $(LIBRARY_PATHS) $(COMPILER_FLAGS) $(LINKER_FLAGS) -o $(BUILDDIR)/$(EXE_FILE)
 
-all: $(OBJS)
-	$(CC) $(OBJS) $(INCLUDE_PATHS) $(LIBRARY_PATHS) $(COMPILER_FLAGS) $(LINKER_FLAGS) -o $(BUILDDIR)/$(EXE_FILE)
+web:
+	emcc ./ui/main.cpp -c -o ./build/main.o -s USE_SDL=2 -s NO_DISABLE_EXCEPTION_CATCHING
+	emcc ./emulator/cpu.cpp -c -o ./build/emulator.o -s NO_DISABLE_EXCEPTION_CATCHING
+	emcc ./build/main.o ./build/emulator.o -o ./build/main.html -s USE_SDL=2 -s NO_DISABLE_EXCEPTION_CATCHING
 
 clean:
 	$(CLEANUP) $(BUILDDIR) $(EXE_FILE)

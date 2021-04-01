@@ -1,11 +1,29 @@
 {
     "configurations": [
         {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/mnt/c/Users/ericm/installs/emsdk/upstream/emscripten/system/include"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.18362.0",
+            "compilerPath": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/MSVC/14.25.28610/bin/Hostx64/x64/cl.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++14",
+            "intelliSenseMode": "windows-msvc-x64"
+        },
+        {
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/**",
                 "${vcpkgRoot}/x64-windows/include",
-                "${vcpkgRoot}/x86-windows/include"
+                "${vcpkgRoot}/x86-windows/include",
+                "C:/Users/ericm/installs/emsdk/upstream/emscripten/system/include"
             ],
             "defines": [
                 "_DEBUG",

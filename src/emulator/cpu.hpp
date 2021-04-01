@@ -20,6 +20,7 @@ public:
 	CPU();
 	~CPU() {};
     void loadROM(const std::string& filePath);
+    void loadIBM();
     WORD fetch();
     void execute(WORD opcode);
     bool getPixel(size_t pos) { return _screenPixels.test(pos); };

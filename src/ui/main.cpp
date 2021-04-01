@@ -2,6 +2,12 @@
 and may not be redistributed without written permission.*/
 
 //Using SDL and standard IO
+//#define __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/html5.h>
+#endif
+
 #include <SDL.h>
 #include <stdio.h>
 #include <string>
@@ -17,6 +23,8 @@ bool init();
 
 //Frees media and shuts down SDL
 void close();
+
+CPU *emuCPU;
 
 //The window we'll be rendering to
 SDL_Window *gWindow = NULL;
@@ -100,6 +108,162 @@ void close()
 	SDL_Quit();
 }
 
+void runTick()
+{
+	CPU *cpu = emuCPU;
+
+	//Process Command
+	WORD opcode = cpu->fetch();
+	cpu->execute(opcode);
+	cpu->decrementDelayTimer(1);
+	cpu->decrementSoundTimer(1);
+
+	//Clear screen
+	SDL_RenderClear(gRenderer);
+
+	//Load image at specified path
+	int width = SCREEN_WIDTH / 10;
+	int height = SCREEN_HEIGHT / 10;
+
+	uint8_t *screen = new uint8_t[width * height * 4];
+
+	for (int h = 0; h < height; h++)
+	{
+		for (int w = 0; w < width; w++)
+		{
+			if (cpu->getPixel((h * width) + (w)))
+			{
+				screen[(h * width * 4) + (w * 4)] = (char)0xff;
+				screen[(h * width * 4) + (w * 4) + 1] = (char)0xff;
+				screen[(h * width * 4) + (w * 4) + 2] = (char)0xff;
+				screen[(h * width * 4) + (w * 4) + 3] = (char)0xff;
+			}
+			else
+			{
+				screen[(h * width * 4) + (w * 4)] = 0x00;
+				screen[(h * width * 4) + (w * 4) + 1] = 0x00;
+				screen[(h * width * 4) + (w * 4) + 2] = 0x00;
+				screen[(h * width * 4) + (w * 4) + 3] = 0x00;
+			}
+		}
+	}
+
+	SDL_UpdateTexture(gTexture, NULL, screen, width * 4);
+	delete[] screen;
+
+	//Render texture to screen
+	SDL_RenderCopy(gRenderer, gTexture, NULL, NULL);
+
+	//Update screen
+	SDL_RenderPresent(gRenderer);
+}
+
+#ifdef __EMSCRIPTEN__
+void runEmulator()
+{
+		//Start CPU
+		CPU cpu;
+		printf("LOADING ROM - IBM LOGO\n");
+		cpu.loadIBM();
+		emuCPU = &cpu;
+
+
+		emscripten_set_main_loop(runTick, 60, 1);
+}
+#else
+void runEmulator()
+{
+	//Main loop flag
+	bool quit = false;
+
+	//Event handler
+	SDL_Event e;
+
+	//Start CPU
+	CPU cpu;
+	cpu.loadROM("./IBM Logo.ch8");
+	//cpu.loadROM("../../roms/TestRoms/IBM Logo.ch8");
+	//cpu.loadROM("../../roms/TestRoms/corax89_test_opcode.ch8");
+	//cpu.loadROM("../../roms/TestRoms/bc_test.ch8");
+	//cpu.loadROM("../../roms/Chip-8 Programs/Random Number Test [Matthew Mikolay, 2010].ch8");
+	//cpu.loadROM("../../roms/Chip-8 Games/Space Invaders [David Winter].ch8");
+	//cpu.loadROM("../../roms/Chip-8 Games/Pong [Paul Vervalin, 1990].ch8");
+
+	//While application is running
+	while (!quit)
+	{
+		//Handle events on queue
+		while (SDL_PollEvent(&e) != 0)
+		{
+			//User requests quit
+			if (e.type == SDL_QUIT)
+			{
+				quit = true;
+			}
+			else
+			{
+				if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)
+				{
+					for (int k = 0; k < 16; k++)
+					{
+						if (e.key.keysym.sym == mappedKeys[k])
+						{
+							cpu.setKeyPressed(k, (e.type == SDL_KEYDOWN));
+						}
+					}
+				}
+			}
+		}
+
+		//Process Command
+		WORD opcode = cpu.fetch();
+		//printf("%x\n", opcode);
+		cpu.execute(opcode);
+		cpu.decrementDelayTimer(1);
+		cpu.decrementSoundTimer(1);
+
+		//Clear screen
+		SDL_RenderClear(gRenderer);
+
+		//Load image at specified path
+		int width = SCREEN_WIDTH / 10;
+		int height = SCREEN_HEIGHT / 10;
+
+		uint8_t *screen = new uint8_t[width * height * 4];
+
+		for (int h = 0; h < height; h++)
+		{
+			for (int w = 0; w < width; w++)
+			{
+				if (cpu.getPixel((h * width) + (w)))
+				{
+					screen[(h * width * 4) + (w * 4)] = (char)0xff;
+					screen[(h * width * 4) + (w * 4) + 1] = (char)0xff;
+					screen[(h * width * 4) + (w * 4) + 2] = (char)0xff;
+					screen[(h * width * 4) + (w * 4) + 3] = (char)0xff;
+				}
+				else
+				{
+					screen[(h * width * 4) + (w * 4)] = 0x00;
+					screen[(h * width * 4) + (w * 4) + 1] = 0x00;
+					screen[(h * width * 4) + (w * 4) + 2] = 0x00;
+					screen[(h * width * 4) + (w * 4) + 3] = 0x00;
+				}
+			}
+		}
+
+		SDL_UpdateTexture(gTexture, NULL, screen, width * 4);
+		delete[] screen;
+
+		//Render texture to screen
+		SDL_RenderCopy(gRenderer, gTexture, NULL, NULL);
+
+		//Update screen
+		SDL_RenderPresent(gRenderer);
+	}
+}
+#endif
+
 int main(int argc, char *args[])
 {
 	//Start up SDL and create window
@@ -109,92 +273,7 @@ int main(int argc, char *args[])
 	}
 	else
 	{
-		//Main loop flag
-		bool quit = false;
-
-		//Event handler
-		SDL_Event e;
-
-		//Start CPU
-		CPU cpu;
-		//cpu.loadROM("../../roms/TestRoms/IBM Logo.ch8");
-		//cpu.loadROM("../../roms/TestRoms/corax89_test_opcode.ch8");
-		//cpu.loadROM("../../roms/TestRoms/bc_test.ch8");
-		//cpu.loadROM("../../roms/Chip-8 Programs/Random Number Test [Matthew Mikolay, 2010].ch8");
-		//cpu.loadROM("../../roms/Chip-8 Games/Space Invaders [David Winter].ch8");		
-		//cpu.loadROM("../../roms/Chip-8 Games/Pong [Paul Vervalin, 1990].ch8");
-
-		//While application is running
-		while (!quit)
-		{
-			//Handle events on queue
-			while (SDL_PollEvent(&e) != 0)
-			{
-				//User requests quit
-				if (e.type == SDL_QUIT)
-				{
-					quit = true;
-				}
-				else
-				{
-					if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)
-					{
-						for (int k = 0; k < 16; k++)
-						{
-							if (e.key.keysym.sym == mappedKeys[k])
-							{
-								cpu.setKeyPressed(k, (e.type == SDL_KEYDOWN));
-							}
-						}
-					}
-				}
-			}
-
-			//Process Command
-			WORD opcode = cpu.fetch();
-			printf("%x\n", opcode);
-			cpu.execute(opcode);
-			cpu.decrementDelayTimer(1);
-			cpu.decrementSoundTimer(1);
-
-			//Clear screen
-			SDL_RenderClear(gRenderer);
-
-			//Load image at specified path
-			int width = SCREEN_WIDTH / 10;
-			int height = SCREEN_HEIGHT / 10;
-
-			uint8_t *screen = new uint8_t[width * height * 4];
-
-			for (int h = 0; h < height; h++)
-			{
-				for (int w = 0; w < width; w++)
-				{
-					if (cpu.getPixel((h * width) + (w)))
-					{
-						screen[(h * width * 4) + (w * 4)] = (char)0xff;
-						screen[(h * width * 4) + (w * 4) + 1] = (char)0xff;
-						screen[(h * width * 4) + (w * 4) + 2] = (char)0xff;
-						screen[(h * width * 4) + (w * 4) + 3] = (char)0xff;
-					}
-					else
-					{
-						screen[(h * width * 4) + (w * 4)] = 0x00;
-						screen[(h * width * 4) + (w * 4) + 1] = 0x00;
-						screen[(h * width * 4) + (w * 4) + 2] = 0x00;
-						screen[(h * width * 4) + (w * 4) + 3] = 0x00;
-					}
-				}
-			}
-
-			SDL_UpdateTexture(gTexture, NULL, screen, width * 4);
-
-			//Render texture to screen
-			SDL_RenderCopy(gRenderer, gTexture, NULL, NULL);
-
-			//Update screen
-			SDL_RenderPresent(gRenderer);
-		}
+		runEmulator();
 	}
 
 	//Free resources and close SDL
