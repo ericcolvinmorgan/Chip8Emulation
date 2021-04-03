@@ -1,5 +1,4 @@
 #pragma once
-
 #include <bitset>
 #include <random>
 #include <string>
@@ -20,6 +19,7 @@ public:
 	CPU();
 	~CPU() {};
     void loadROM(const std::string& filePath);
+    void loadROM(const BYTE* romData);
     void loadIBM();
     WORD fetch();
     void execute(WORD opcode);

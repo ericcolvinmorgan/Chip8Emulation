@@ -8,13 +8,18 @@ and may not be redistributed without written permission.*/
 #include <emscripten/html5.h>
 #endif
 
-#include <SDL.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include <stdio.h>
 #include <string>
-
+#include <sstream>
+#include <chrono>
+#include <iostream>
 #include "../emulator/cpu.hpp"
 
 //Screen dimension constants
+// const int SCREEN_WIDTH = 640;
+// const int SCREEN_HEIGHT = 320;
 const int SCREEN_WIDTH = 640;
 const int SCREEN_HEIGHT = 320;
 
@@ -34,6 +39,7 @@ SDL_Renderer *gRenderer = NULL;
 
 //Current displayed texture
 SDL_Texture *gTexture = NULL;
+TTF_Font *font = NULL;
 
 uint16_t mappedKeys[16] = {
 	SDLK_x,										   //0
@@ -42,6 +48,13 @@ uint16_t mappedKeys[16] = {
 	SDLK_a, SDLK_s, SDLK_d,						   // 7, 8, 9
 	SDLK_z, SDLK_c, SDLK_4, SDLK_r, SDLK_f, SDLK_v //a, b, c, d, e, f
 };
+
+int totalFrames = 0;
+auto startTime = std::chrono::high_resolution_clock::now();
+double currentFPS = 60.;
+
+int timerSpeed = 60;
+int targetSpeed = 500;
 
 bool init()
 {
@@ -85,6 +98,15 @@ bool init()
 
 				//Create Texture
 				gTexture = SDL_CreateTexture(gRenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STATIC, SCREEN_WIDTH / 10, SCREEN_HEIGHT / 10);
+
+				/* Init TTF. */
+				TTF_Init();
+				font = TTF_OpenFont("fontset.ttf", 12);
+				if (font == NULL)
+				{
+					fprintf(stderr, "error: font not found\n");
+					exit(EXIT_FAILURE);
+				}
 			}
 		}
 	}
@@ -108,15 +130,71 @@ void close()
 	SDL_Quit();
 }
 
-void runTick()
+//TODO: Quick method to render text for diag purposes, need to refactor explore better methods.
+//https://stackoverflow.com/questions/22852226/c-sdl2-how-to-regularly-update-a-renderered-text-ttf
+void render_text(
+	SDL_Renderer *renderer,
+	int x,
+	int y,
+	const char *text,
+	TTF_Font *font,
+	SDL_Rect *rect,
+	SDL_Color *color)
+{
+	SDL_Surface *surface;
+	SDL_Texture *texture;
+
+	surface = TTF_RenderText_Solid(font, text, *color);
+	texture = SDL_CreateTextureFromSurface(renderer, surface);
+	rect->x = x;
+	rect->y = y;
+	rect->w = surface->w;
+	rect->h = surface->h;
+	/* This is wasteful for textures that stay the same.
+     * But makes things less stateful and easier to use.
+     * Not going to code an atlas solution here... are we? */
+	SDL_FreeSurface(surface);
+	SDL_RenderCopy(renderer, texture, NULL, rect);
+	SDL_DestroyTexture(texture);
+}
+
+void runCycle()
 {
 	CPU *cpu = emuCPU;
+	
+	//Event handler
+	SDL_Event e;
+
+	//Handle events on queue
+	while (SDL_PollEvent(&e) != 0)
+	{
+		if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)
+		{
+			for (int k = 0; k < 16; k++)
+			{
+				if (e.key.keysym.sym == mappedKeys[k])
+				{
+					cpu->setKeyPressed(k, (e.type == SDL_KEYDOWN));
+				}
+			}
+		}
+	}
 
 	//Process Command
-	WORD opcode = cpu->fetch();
-	cpu->execute(opcode);
-	cpu->decrementDelayTimer(1);
-	cpu->decrementSoundTimer(1);
+	int clockTicks = targetSpeed / currentFPS;
+	for (int i = 0; i < clockTicks; i++)
+	{
+		WORD opcode = cpu->fetch();
+		cpu->execute(opcode);
+	}
+
+	//Update Timers
+	int timerTicks = timerSpeed / currentFPS;
+	for (int i = 0; i < timerTicks; i++)
+	{
+		cpu->decrementDelayTimer(1);
+		cpu->decrementSoundTimer(1);
+	}
 
 	//Clear screen
 	SDL_RenderClear(gRenderer);
@@ -154,6 +232,21 @@ void runTick()
 	//Render texture to screen
 	SDL_RenderCopy(gRenderer, gTexture, NULL, NULL);
 
+	totalFrames++;
+	double currentFPS = totalFrames / std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - startTime).count();
+	SDL_Rect rect;
+	SDL_Color color;
+
+	/* initialize variables. */
+	color.r = 255;
+	color.g = 255;
+	color.b = 255;
+	color.a = 255;
+
+	std::stringstream ss;
+	ss << "FPS: " << currentFPS;
+	render_text(gRenderer, 0, 0, ss.str().c_str(), font, &rect, &color);
+
 	//Update screen
 	SDL_RenderPresent(gRenderer);
 }
@@ -161,14 +254,13 @@ void runTick()
 #ifdef __EMSCRIPTEN__
 void runEmulator()
 {
-		//Start CPU
-		CPU cpu;
-		printf("LOADING ROM - IBM LOGO\n");
-		cpu.loadIBM();
-		emuCPU = &cpu;
+	//Start CPU
+	CPU cpu;
+	printf("LOADING ROM - IBM LOGO\n");
+	cpu.loadIBM();
+	emuCPU = &cpu;
 
-
-		emscripten_set_main_loop(runTick, 60, 1);
+	emscripten_set_main_loop(runCycle, 0, 1);
 }
 #else
 void runEmulator()
@@ -181,12 +273,13 @@ void runEmulator()
 
 	//Start CPU
 	CPU cpu;
-	cpu.loadROM("./IBM Logo.ch8");
+	//cpu.loadROM("../../roms/Chip-8 Games/Astro Dodge [Revival Studios, 2008].ch8");
+	//cpu.loadROM("../../roms/Chip-8 Demos/Trip8 Demo (2008) [Revival Studios].ch8");
 	//cpu.loadROM("../../roms/TestRoms/IBM Logo.ch8");
 	//cpu.loadROM("../../roms/TestRoms/corax89_test_opcode.ch8");
 	//cpu.loadROM("../../roms/TestRoms/bc_test.ch8");
 	//cpu.loadROM("../../roms/Chip-8 Programs/Random Number Test [Matthew Mikolay, 2010].ch8");
-	//cpu.loadROM("../../roms/Chip-8 Games/Space Invaders [David Winter].ch8");
+	cpu.loadROM("../../roms/Chip-8 Games/Space Invaders [David Winter].ch8");
 	//cpu.loadROM("../../roms/Chip-8 Games/Pong [Paul Vervalin, 1990].ch8");
 
 	//While application is running
@@ -216,9 +309,12 @@ void runEmulator()
 		}
 
 		//Process Command
+		for(int i = 0; i < 10; i++)
+		{
 		WORD opcode = cpu.fetch();
-		//printf("%x\n", opcode);
+		printf("%x\n", opcode);
 		cpu.execute(opcode);
+		}
 		cpu.decrementDelayTimer(1);
 		cpu.decrementSoundTimer(1);
 
@@ -258,11 +354,34 @@ void runEmulator()
 		//Render texture to screen
 		SDL_RenderCopy(gRenderer, gTexture, NULL, NULL);
 
+		totalFrames++;
+		double currentFPS = totalFrames / std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - startTime).count();
+		SDL_Rect rect;
+		SDL_Color color;
+
+		/* initialize variables. */
+		color.r = 255;
+		color.g = 255;
+		color.b = 255;
+		color.a = 255;
+
+		std::stringstream ss;
+		ss << "FPS: " << currentFPS;
+		render_text(gRenderer, 0, 0, ss.str().c_str(), font, &rect, &color);
+
 		//Update screen
 		SDL_RenderPresent(gRenderer);
 	}
 }
 #endif
+
+extern "C"
+{
+	void loadROM(const BYTE *romData)
+	{
+		emuCPU->loadROM(romData);
+	}
+}
 
 int main(int argc, char *args[])
 {

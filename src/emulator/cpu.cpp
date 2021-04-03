@@ -57,9 +57,6 @@ void CPU::loadIBM()
 
 void CPU::loadROM(const std::string &filePath)
 {
-    //Clear Memory
-    memset(&_memory[MEMORY_PROGRAM_START], 0, (MEMORY_END - MEMORY_PROGRAM_START) + 1);
-
     // Open the stream
     std::ifstream inputFile(filePath, std::ios::binary);
 
@@ -69,8 +66,18 @@ void CPU::loadROM(const std::string &filePath)
     inputFile.seekg(0, std::ios_base::beg);
 
     //Read contents to memory and close file.
-    inputFile.read((char *)&_memory[MEMORY_PROGRAM_START], size);
-    inputFile.close();
+    BYTE* romData = new BYTE[size];
+    inputFile.read((char *)romData, size);
+    loadROM(romData);
+    delete[] romData;
+    inputFile.close(); 
+}
+
+void CPU::loadROM(const BYTE* romData)
+{
+    //Clear memory and load rom data.
+    memset(&_memory[MEMORY_PROGRAM_START], 0, (MEMORY_END - MEMORY_PROGRAM_START) + 1);
+    memcpy(&_memory[MEMORY_PROGRAM_START], romData, (MEMORY_END - MEMORY_PROGRAM_START) + 1);
 
     //Set program counter
     _pc = MEMORY_PROGRAM_START;

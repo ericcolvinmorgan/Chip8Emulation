@@ -2,3 +2,4 @@
 /src/build
 /roms/*
 !/roms/TestRoms/
+!release/roms/

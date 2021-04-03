@@ -29,7 +29,7 @@ OBJS= ./$(BUILDDIR)/main.o ./$(BUILDDIR)/cpu.o
 CC = g++
 
 #INCLUDE_PATHS specifies the additional include paths we'll need
-INCLUDE_PATHS = -I../dependencies/x86_64-w64-mingw32/include/SDL2
+INCLUDE_PATHS = -I../dependencies/x86_64-w64-mingw32/include/
 
 #LIBRARY_PATHS specifies the additional library paths we'll need
 LIBRARY_PATHS = -L../dependencies/x86_64-w64-mingw32/lib
@@ -41,15 +41,40 @@ LIBRARY_PATHS = -L../dependencies/x86_64-w64-mingw32/lib
 COMPILER_FLAGS = -w -g
 
 #LINKER_FLAGS specifies the libraries we're linking against
-LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2
+LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf
 
 all: $(SRCS)
 	$(CC) $(SRCS) $(INCLUDE_PATHS) $(LIBRARY_PATHS) $(COMPILER_FLAGS) $(LINKER_FLAGS) -o $(BUILDDIR)/$(EXE_FILE)
 
-web:
-	emcc ./ui/main.cpp -c -o ./build/main.o -s USE_SDL=2 -s NO_DISABLE_EXCEPTION_CATCHING
-	emcc ./emulator/cpu.cpp -c -o ./build/emulator.o -s NO_DISABLE_EXCEPTION_CATCHING
-	emcc ./build/main.o ./build/emulator.o -o ./build/main.html -s USE_SDL=2 -s NO_DISABLE_EXCEPTION_CATCHING
+wasmdev:
+	emcc \
+	-g \
+	./ui/main.cpp \
+	./emulator/cpu.cpp \
+	-s WASM=1 \
+	-s USE_SDL=2 \
+	-s USE_SDL_TTF=2 \
+	--preload-file ./build/FreeSans.ttf@fontset.ttf \
+	-s EMIT_PRODUCERS_SECTION=1 \
+	-s EXPORTED_FUNCTIONS='["_main", "_loadROM"]' \
+	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
+	-o ./build/main.html \
+	--shell-file ./web/interface.html
+
+wasm:
+	cp ./web/interface.js ../release/
+	emcc \
+	-O3 \
+	./ui/main.cpp \
+	./emulator/cpu.cpp \
+	-s WASM=1 \
+	-s USE_SDL=2 \
+	-s USE_SDL_TTF=2 \
+	--preload-file ./build/FreeSans.ttf@fontset.ttf \
+	-s EXPORTED_FUNCTIONS='["_main", "_loadROM"]' \
+	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
+	-o ../release/main.html \
+	--shell-file ./web/interface.html	
 
 clean:
 	$(CLEANUP) $(BUILDDIR) $(EXE_FILE)
