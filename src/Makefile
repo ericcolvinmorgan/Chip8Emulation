@@ -62,7 +62,7 @@ wasmdev:
 	--shell-file ./web/interface.html
 
 wasm:
-	cp ./web/interface.js ../release/
+	cp ./web/interface.js ../docs/
 	emcc \
 	-O3 \
 	./ui/main.cpp \
@@ -73,7 +73,7 @@ wasm:
 	--preload-file ./build/FreeSans.ttf@fontset.ttf \
 	-s EXPORTED_FUNCTIONS='["_main", "_loadROM"]' \
 	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
-	-o ../release/main.html \
+	-o ../docs/index.html \
 	--shell-file ./web/interface.html	
 
 clean:
