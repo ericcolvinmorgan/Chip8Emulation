@@ -46,6 +46,8 @@ LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf
 all: $(SRCS)
 	$(CC) $(SRCS) $(INCLUDE_PATHS) $(LIBRARY_PATHS) $(COMPILER_FLAGS) $(LINKER_FLAGS) -o $(BUILDDIR)/$(EXE_FILE)
 
+# Remember to run "source $SETUPEMSDKENV" where $SETUPEMSDKENV is the path to the emsdk_env.sh file.
+# Start testing server with emrun index.html --no_browser
 wasmdev:
 	emcc \
 	-g \
@@ -56,9 +58,9 @@ wasmdev:
 	-s USE_SDL_TTF=2 \
 	--preload-file ./build/FreeSans.ttf@fontset.ttf \
 	-s EMIT_PRODUCERS_SECTION=1 \
-	-s EXPORTED_FUNCTIONS='["_main", "_loadROM"]' \
+	-s EXPORTED_FUNCTIONS='["_main", "_loadROM", "_setTargetSpeed", "_dumpCPUDetail"]' \
 	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
-	-o ./build/main.html \
+	-o ./build/index.html \
 	--shell-file ./web/interface.html
 
 wasm:
@@ -71,7 +73,7 @@ wasm:
 	-s USE_SDL=2 \
 	-s USE_SDL_TTF=2 \
 	--preload-file ./build/FreeSans.ttf@fontset.ttf \
-	-s EXPORTED_FUNCTIONS='["_main", "_loadROM"]' \
+	-s EXPORTED_FUNCTIONS='["_main", "_loadROM", "_setTargetSpeed", "_dumpCPUDetail"]' \
 	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
 	-o ../docs/index.html \
 	--shell-file ./web/interface.html	

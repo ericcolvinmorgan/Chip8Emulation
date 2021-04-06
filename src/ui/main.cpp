@@ -53,8 +53,8 @@ int totalFrames = 0;
 auto startTime = std::chrono::high_resolution_clock::now();
 double currentFPS = 60.;
 
-int timerSpeed = 60;
-int targetSpeed = 500;
+int gTimerSpeed = 60;
+int gTargetSpeed = 500;
 
 bool init()
 {
@@ -130,7 +130,7 @@ void close()
 	SDL_Quit();
 }
 
-//TODO: Quick method to render text for diag purposes, need to refactor explore better methods.
+//TODO: Quick method to render text for diag purposes, need to refactor/explore better methods.
 //https://stackoverflow.com/questions/22852226/c-sdl2-how-to-regularly-update-a-renderered-text-ttf
 void render_text(
 	SDL_Renderer *renderer,
@@ -158,10 +158,11 @@ void render_text(
 	SDL_DestroyTexture(texture);
 }
 
+#ifdef __EMSCRIPTEN__
 void runCycle()
 {
 	CPU *cpu = emuCPU;
-	
+
 	//Event handler
 	SDL_Event e;
 
@@ -181,7 +182,7 @@ void runCycle()
 	}
 
 	//Process Command
-	int clockTicks = targetSpeed / currentFPS;
+	int clockTicks = gTargetSpeed / currentFPS;
 	for (int i = 0; i < clockTicks; i++)
 	{
 		WORD opcode = cpu->fetch();
@@ -189,7 +190,7 @@ void runCycle()
 	}
 
 	//Update Timers
-	int timerTicks = timerSpeed / currentFPS;
+	int timerTicks = gTimerSpeed / currentFPS;
 	for (int i = 0; i < timerTicks; i++)
 	{
 		cpu->decrementDelayTimer(1);
@@ -249,9 +250,13 @@ void runCycle()
 
 	//Update screen
 	SDL_RenderPresent(gRenderer);
+
+	EM_ASM({
+		Interface.updateScreen($0);
+	},
+		   emuCPU->getRegisters());
 }
 
-#ifdef __EMSCRIPTEN__
 void runEmulator()
 {
 	//Start CPU
@@ -259,6 +264,33 @@ void runEmulator()
 	printf("LOADING ROM - IBM LOGO\n");
 	cpu.loadIBM();
 	emuCPU = &cpu;
+
+	EM_ASM({
+		Interface.indexRegister = new Uint16Array(
+			Module.HEAPU8.buffer,
+			$0,
+			1);
+
+		Interface.programCounter = new Uint16Array(
+			Module.HEAPU8.buffer,
+			$1,
+			1);
+
+		Interface.registers = new Uint8Array(
+			Module.HEAPU8.buffer,
+			$2,
+			16);
+
+		Interface.delayTimer = new Uint8Array(
+			Module.HEAPU8.buffer,
+			$3,
+			1);
+
+		Interface.soundTimer = new Uint8Array(
+			Module.HEAPU8.buffer,
+			$4,
+			1);
+	}, emuCPU->getIndexRegister(), emuCPU->getProgramCounter(), emuCPU->getRegisters(), emuCPU->getDelayTimer(), emuCPU->getSoundTimer());
 
 	emscripten_set_main_loop(runCycle, 0, 1);
 }
@@ -279,8 +311,8 @@ void runEmulator()
 	//cpu.loadROM("../../roms/TestRoms/corax89_test_opcode.ch8");
 	//cpu.loadROM("../../roms/TestRoms/bc_test.ch8");
 	//cpu.loadROM("../../roms/Chip-8 Programs/Random Number Test [Matthew Mikolay, 2010].ch8");
-	cpu.loadROM("../../roms/Chip-8 Games/Space Invaders [David Winter].ch8");
 	//cpu.loadROM("../../roms/Chip-8 Games/Pong [Paul Vervalin, 1990].ch8");
+	cpu.loadROM("./roms/TICTACTOE.ch8");
 
 	//While application is running
 	while (!quit)
@@ -309,11 +341,11 @@ void runEmulator()
 		}
 
 		//Process Command
-		for(int i = 0; i < 10; i++)
+		for (int i = 0; i < 10; i++)
 		{
-		WORD opcode = cpu.fetch();
-		printf("%x\n", opcode);
-		cpu.execute(opcode);
+			WORD opcode = cpu.fetch();
+			printf("%x\n", opcode);
+			cpu.execute(opcode);
 		}
 		cpu.decrementDelayTimer(1);
 		cpu.decrementSoundTimer(1);
@@ -380,6 +412,17 @@ extern "C"
 	void loadROM(const BYTE *romData)
 	{
 		emuCPU->loadROM(romData);
+	}
+
+	void setTargetSpeed(int targetSpeed)
+	{
+		gTargetSpeed = targetSpeed;
+	}
+
+	void dumpCPUDetail(BYTE *const detail)
+	{
+		auto registers = emuCPU->getRegisters();
+		std::copy(registers, &registers[0xf], detail);
 	}
 }
 

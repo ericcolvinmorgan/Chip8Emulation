@@ -5,9 +5,8 @@
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <title>Emscripten-Generated Code</title>
-    <script src="interface.js"></script>
     <style>
-      body {background-color: black;}
+      body {background-color: black; color: white;}
       .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
       textarea.emscripten { font-family: monospace; width: 80%; }
       div.emscripten { text-align: center; }
@@ -62,14 +61,24 @@
     <hr/>    
     <div class="emscripten" id="menu">
       <select id="rom-dropdown">
-        <option value='./roms/IBM Logo.ch8' data-rate=500>IBM LOGO</option>
-        <option value='./roms/Extra.ch8' data-rate=500>EXTRA</option>
-        <option value='./roms/Extra2.ch8' data-rate=500>EXTRA 2</option>
-        <option value='./roms/Tetris.ch8' data-rate=500>Tetris</option>
+        <option value='./roms/15PUZZLE.ch8' data-rate=500>15 Puzzle</option>
+        <option value='./roms/BLINKY.ch8' data-rate=500>Blinky</option>
+        <option value='./roms/BRIX.ch8' data-rate=500>Brix</option>
+        <option value='./roms/TETRIS.ch8' data-rate=500>Tetris</option>
+        <option value='./roms/TICTACTOE.ch8' data-rate=400>Tic-Tac-Toe</option>
+        <option value='./roms/TRIP8.ch8' data-rate=500>Trip 8</option>
+        <option value='./roms/INVADERS.ch8' data-rate=500>Invaders</option>
+        <option value='./roms/IBM Logo.ch8' data-rate=500>IBM Logo</option>
+        <option value='./roms/BCTEST.ch8' data-rate=500>BestCoder Tests</option>
+        <option value='./roms/CORAX89_TEST_OPCODES.ch8' data-rate=500>Corax89 Opcodes Test</option>
       </select>
       <button type="button" id="rom-load">LOAD</button>
     </div>
+    <div class="emscripten" id="cpu-detail">
+      <div id="registers"></div>
+    </div>        
 
+    <script src="interface.js"></script>
     <script type='text/javascript'>
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');

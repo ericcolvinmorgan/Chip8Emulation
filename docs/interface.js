@@ -15,3 +15,23 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 });
+
+const Interface = {
+    registersView: document.getElementById('registers'),
+    indexRegister: null,
+    programCounter: null,
+    registers: null,
+    delayTimer: null,
+    soundTimer: null,
+    updateScreen(value) {
+        this.registersView.innerHTML = "";
+        this.registersView.innerHTML += `<div>Index Register: ${this.indexRegister[0]}</div>`;
+        this.registersView.innerHTML += `<div>Program Counter: ${this.programCounter[0]}</div>`;
+        this.registersView.innerHTML += `<div>Delay Timer: ${this.delayTimer[0]}</div>`;
+        this.registersView.innerHTML += `<div>Sound Timer: ${this.soundTimer[0]}</div>`;
+        for(i = 0; i < 16; i++)
+        {
+            this.registersView.innerHTML += `<div>V${i}: ${this.registers[i]}</div>`;
+        }
+    }
+}
