@@ -2,17 +2,7 @@
 #include <bitset>
 #include <random>
 #include <string>
-
-typedef uint8_t BYTE;
-
-const short CHIP_SCREEN_WIDTH = 64;
-const short CHIP_SCREEN_HEIGHT = 32;
-
-typedef struct
-{
-  BYTE highByte;
-  BYTE lowByte;
-} WORD;
+#include "constants.hpp"
 
 class CPU
 {
@@ -21,10 +11,10 @@ public:
   ~CPU(){};
   void loadROM(const std::string &filePath);
   void loadROM(const BYTE *romData);
-  void loadIBM();
   WORD fetch();
   void execute(WORD opcode);
   void reset();
+  const std::bitset<CHIP_SCREEN_WIDTH * CHIP_SCREEN_HEIGHT> *const getScreenPixels() { return &_screenPixels; }
   bool getPixel(size_t pos) { return _screenPixels.test(pos); };
   void setKeyPressed(uint8_t key, bool pressed);
   void decrementDelayTimer(BYTE step);

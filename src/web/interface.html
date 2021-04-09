@@ -1,160 +1,380 @@
 <!-- ADAPTED FROM EXAMPLE AT https://raw.githubusercontent.com/emscripten-core/emscripten/main/src/shell_minimal.html -->
 <!doctype html>
 <html lang="en-us">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Emscripten-Generated Code</title>
-    <style>
-      body {background-color: black; color: white;}
-      .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
-      textarea.emscripten { font-family: monospace; width: 80%; }
-      div.emscripten { text-align: center; }
-      /* div.emscripten_border { border: 1px solid black; } */
-      /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
-      canvas.emscripten { border: 0px none; background-color: black; }
 
-      .spinner {
-        height: 50px;
-        width: 50px;
-        margin: 0px auto;
-        -webkit-animation: rotation .8s linear infinite;
-        -moz-animation: rotation .8s linear infinite;
-        -o-animation: rotation .8s linear infinite;
-        animation: rotation 0.8s linear infinite;
-        border-left: 10px solid rgb(0,150,240);
-        border-right: 10px solid rgb(0,150,240);
-        border-bottom: 10px solid rgb(0,150,240);
-        border-top: 10px solid rgb(100,0,200);
-        border-radius: 100%;
-        background-color: rgb(200,100,250);
-      }
-      @-webkit-keyframes rotation {
-        from {-webkit-transform: rotate(0deg);}
-        to {-webkit-transform: rotate(360deg);}
-      }
-      @-moz-keyframes rotation {
-        from {-moz-transform: rotate(0deg);}
-        to {-moz-transform: rotate(360deg);}
-      }
-      @-o-keyframes rotation {
-        from {-o-transform: rotate(0deg);}
-        to {-o-transform: rotate(360deg);}
-      }
-      @keyframes rotation {
-        from {transform: rotate(0deg);}
-        to {transform: rotate(360deg);}
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Chip-8 Interpreter</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+    * {
+      font-family: 'VT323', monospace;
+    }
+
+    body {
+      background-color: black;
+      color: rgba(251, 120, 67, 1);
+    }
+
+    a {
+      color: rgba(251, 120, 67, 1);
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    h4 {
+      text-align: center;
+    }
+
+    .emscripten {
+      padding-right: 0;
+      margin-left: auto;
+      margin-right: auto;
+      display: block;
+    }
+
+    textarea.emscripten {
+      width: 80%;
+    }
+
+    div.emscripten {
+      text-align: center;
+    }
+
+    /* div.emscripten_border { border: 1px solid black; } */
+    /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+    canvas.emscripten {
+      border: 0px none;
+      background-color: black;
+    }
+
+    .spinner {
+      height: 50px;
+      width: 50px;
+      margin: 0px auto;
+      -webkit-animation: rotation .8s linear infinite;
+      -moz-animation: rotation .8s linear infinite;
+      -o-animation: rotation .8s linear infinite;
+      animation: rotation 0.8s linear infinite;
+      border-left: 10px solid rgba(251, 120, 67, 1);
+      border-right: 10px solid rgba(253, 236, 128, 1);
+      border-bottom: 10px solid rgba(251, 120, 67, 1);
+      border-top: 10px solid rgba(173, 67, 44, 1);
+      border-radius: 100%;
+      background-color: rgb(0, 0, 0, 0);
+    }
+
+    @-webkit-keyframes rotation {
+      from {
+        -webkit-transform: rotate(0deg);
       }
 
-    </style>
-  </head>
-  <body>
-    <hr/>
-    <figure style="overflow:visible;" id="spinner"><div class="spinner"></div><center style="margin-top:0.5em"><strong>emscripten</strong></center></figure>
+      to {
+        -webkit-transform: rotate(360deg);
+      }
+    }
+
+    @-moz-keyframes rotation {
+      from {
+        -moz-transform: rotate(0deg);
+      }
+
+      to {
+        -moz-transform: rotate(360deg);
+      }
+    }
+
+    @-o-keyframes rotation {
+      from {
+        -o-transform: rotate(0deg);
+      }
+
+      to {
+        -o-transform: rotate(360deg);
+      }
+    }
+
+    @keyframes rotation {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    progress {
+      background-color: black;
+    }
+
+    progress::-moz-progress-bar {
+      background: rgba(251, 120, 67, 1);
+    }
+
+    progress::-webkit-progress-value {
+      background: rgba(251, 120, 67, 1);
+    }
+
+    progress {
+      color: rgba(251, 120, 67, 1);
+    }
+
+    #menu * {
+      margin-left: 3px;
+      margin-right: 3px;
+      border-top-width: 5px;
+      border-bottom-width: 3px;
+    }
+
+    .container {
+      width: 680px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    #cpu-detail>#registers {
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    #cpu-detail>#registers>div {
+      float: left;
+      width: 20%;
+    }
+
+    #mapped-keys>table {
+      padding-top: .5rem;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    #mapped-keys>table th {
+      height: 20px;
+      width: 20px;
+      border-style: solid;
+      border-width: 1px;
+    }
+
+    #mapped-keys>table th:empty {
+      border-style: none;
+    }
+
+    select {
+      background-color: rgba(251, 120, 67, 1);
+      color: black;
+      border-color: rgba(251, 120, 67, 1);
+      border-top-width: 5px;
+      border-top-width: 5px;
+      font-size: 1rem;
+    }
+
+    button {
+      background-color: rgba(251, 120, 67, 1);
+      color: black;
+      border-style: solid;
+      border-color: rgba(251, 120, 67, 1);
+      border-width: 3px;
+      border-top-width: 5px;
+      font-size: 1rem;
+    }
+
+    div.controls {
+      margin-left: auto;
+      margin-right: auto;
+      margin-top: none;
+      margin-bottom: none;
+      width: 100%;
+    }
+
+    div.controls .section {
+      position: relative;
+      padding-top: .5rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1 class="emscripten">CHIP-8 INTERPRETER</h1>
+    <h4 class="emscripten"><a href="http://www.ericcolvinmorgan.com">Eric Colvin Morgan</a></h4>
+    <figure style="overflow:visible;" id="spinner">
+      <div class="spinner"></div>
+      <center style="margin-top:0.5em"><strong>Starting Chip-8</strong></center>
+    </figure>
     <div class="emscripten" id="status">Downloading...</div>
     <div class="emscripten">
-      <progress value="0" max="100" id="progress" hidden=1></progress>  
+      <progress value="0" max="100" id="progress" hidden=1></progress>
     </div>
     <div class="emscripten_border">
       <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
     </div>
-    <hr/>    
-    <div class="emscripten" id="menu">
-      <select id="rom-dropdown">
-        <option value='./roms/15PUZZLE.ch8' data-rate=500>15 Puzzle</option>
-        <option value='./roms/BLINKY.ch8' data-rate=500>Blinky</option>
-        <option value='./roms/BRIX.ch8' data-rate=500>Brix</option>
-        <option value='./roms/TETRIS.ch8' data-rate=500>Tetris</option>
-        <option value='./roms/TICTACTOE.ch8' data-rate=400>Tic-Tac-Toe</option>
-        <option value='./roms/TRIP8.ch8' data-rate=500>Trip 8</option>
-        <option value='./roms/INVADERS.ch8' data-rate=500>Invaders</option>
-        <option value='./roms/IBM Logo.ch8' data-rate=500>IBM Logo</option>
-        <option value='./roms/BCTEST.ch8' data-rate=500>BestCoder Tests</option>
-        <option value='./roms/CORAX89_TEST_OPCODES.ch8' data-rate=500>Corax89 Opcodes Test</option>
-      </select>
-      <button type="button" id="rom-load">LOAD</button>
+    <div class=controls>
+      <div class="emscripten section" id="menu">
+        <span>SELECT GAME: </span>
+        <select id="rom-dropdown">
+          <option value='./roms/15PUZZLE.ch8' data-rate=500>15 Puzzle</option>
+          <option value='./roms/BLINKY.ch8' data-rate=500>Blinky</option>
+          <option value='./roms/BRIX.ch8' data-rate=500>Brix</option>
+          <option value='./roms/TETRIS.ch8' data-rate=500>Tetris</option>
+          <option value='./roms/TICTACTOE.ch8' data-rate=400>Tic-Tac-Toe</option>
+          <option value='./roms/TRIP8.ch8' data-rate=500>Trip 8</option>
+          <option value='./roms/INVADERS.ch8' data-rate=500>Invaders</option>
+          <option value='./roms/IBM Logo.ch8' data-rate=500>IBM Logo</option>
+          <option value='./roms/BCTEST.ch8' data-rate=500>BestCoder Tests</option>
+          <option value='./roms/CORAX89_TEST_OPCODES.ch8' data-rate=500>Corax89 Opcodes Test</option>
+        </select><button type="button" id="rom-load">LOAD</button>
+        <span>|</span>
+        <button type="button" id="rom-load">PAUSE</button>
+        <button type="button" id="rom-load" disabled>X</button>
+        <span>|</span>
+        <button type="button" id="rom-load">SOUND: ON</button>
+      </div>
+      <div class="emscripten section" id="cpu-detail">
+        <div id="registers"></div>
+      </div>
+
+      <div class="emscripten section" id="mapped-keys">
+        <table id="keys-table">
+          <tr>
+            <th colspan="4">
+              MAPPED KEYS
+            </th>
+            <th></th>
+            <th colspan="4">
+              CHIP-8 KEYS
+            </th>
+          </tr>
+          <tr>
+            <th>1</th>
+            <th>2</th>
+            <th>3</th>
+            <th>4</th>
+            <th></th>
+            <th>1</th>
+            <th>2</th>
+            <th>3</th>
+            <th>C</th>
+          </tr>
+          <tr>
+            <th>Q</th>
+            <th>W</th>
+            <th>E</th>
+            <th>R</th>
+            <th></th>
+            <th>4</th>
+            <th>5</th>
+            <th>6</th>
+            <th>D</th>
+          </tr>
+          <tr>
+            <th>A</th>
+            <th>S</th>
+            <th>D</th>
+            <th>F</th>
+            <th></th>
+            <th>7</th>
+            <th>8</th>
+            <th>9</th>
+            <th>E</th>
+          </tr>
+          <tr>
+            <th>Z</th>
+            <th>X</th>
+            <th>C</th>
+            <th>V</th>
+            <th></th>
+            <th>A</th>
+            <th>0</th>
+            <th>B</th>
+            <th>F</th>
+          </tr>
+        </table>
+      </div>
     </div>
-    <div class="emscripten" id="cpu-detail">
-      <div id="registers"></div>
-    </div>        
+  </div>
+  <script src="interface.js"></script>
+  <script type='text/javascript'>
+    var statusElement = document.getElementById('status');
+    var progressElement = document.getElementById('progress');
+    var spinnerElement = document.getElementById('spinner');
 
-    <script src="interface.js"></script>
-    <script type='text/javascript'>
-      var statusElement = document.getElementById('status');
-      var progressElement = document.getElementById('progress');
-      var spinnerElement = document.getElementById('spinner');
-
-      var Module = {
-        preRun: [],
-        postRun: [],
-        print: (function() {
-          var element = document.getElementById('output');
-          if (element) element.value = ''; // clear browser cache
-          return function(text) {
-            if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-            // These replacements are necessary if you render to raw HTML
-            //text = text.replace(/&/g, "&amp;");
-            //text = text.replace(/</g, "&lt;");
-            //text = text.replace(/>/g, "&gt;");
-            //text = text.replace('\n', '<br>', 'g');
-            console.log(text);
-            if (element) {
-              element.value += text + "\n";
-              element.scrollTop = element.scrollHeight; // focus on bottom
-            }
-          };
-        })(),
-        printErr: function(text) {
+    var Module = {
+      preRun: [],
+      postRun: [],
+      print: (function () {
+        var element = document.getElementById('output');
+        if (element) element.value = ''; // clear browser cache
+        return function (text) {
           if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-          console.error(text);
-        },
-        canvas: (function() {
-          var canvas = document.getElementById('canvas');
-
-          // As a default initial behavior, pop up an alert when webgl context is lost. To make your
-          // application robust, you may want to override this behavior before shipping!
-          // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
-          canvas.addEventListener("webglcontextlost", function(e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
-
-          return canvas;
-        })(),
-        setStatus: function(text) {
-          if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
-          if (text === Module.setStatus.last.text) return;
-          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
-          var now = Date.now();
-          if (m && now - Module.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
-          Module.setStatus.last.time = now;
-          Module.setStatus.last.text = text;
-          if (m) {
-            text = m[1];
-            progressElement.value = parseInt(m[2])*100;
-            progressElement.max = parseInt(m[4])*100;
-            progressElement.hidden = false;
-            spinnerElement.hidden = false;
-          } else {
-            progressElement.value = null;
-            progressElement.max = null;
-            progressElement.hidden = true;
-            if (!text) spinnerElement.hidden = true;
+          // These replacements are necessary if you render to raw HTML
+          //text = text.replace(/&/g, "&amp;");
+          //text = text.replace(/</g, "&lt;");
+          //text = text.replace(/>/g, "&gt;");
+          //text = text.replace('\n', '<br>', 'g');
+          console.log(text);
+          if (element) {
+            element.value += text + "\n";
+            element.scrollTop = element.scrollHeight; // focus on bottom
           }
-          statusElement.innerHTML = text;
-        },
-        totalDependencies: 0,
-        monitorRunDependencies: function(left) {
-          this.totalDependencies = Math.max(this.totalDependencies, left);
-          Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
-        }
-      };
-      Module.setStatus('Downloading...');
-      window.onerror = function() {
-        Module.setStatus('Exception thrown, see JavaScript console');
-        spinnerElement.style.display = 'none';
-        Module.setStatus = function(text) {
-          if (text) Module.printErr('[post-exception status] ' + text);
         };
+      })(),
+      printErr: function (text) {
+        if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+        console.error(text);
+      },
+      canvas: (function () {
+        var canvas = document.getElementById('canvas');
+
+        // As a default initial behavior, pop up an alert when webgl context is lost. To make your
+        // application robust, you may want to override this behavior before shipping!
+        // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
+        canvas.addEventListener("webglcontextlost", function (e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
+
+        return canvas;
+      })(),
+      setStatus: function (text) {
+        if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+        if (text === Module.setStatus.last.text) return;
+        var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+        var now = Date.now();
+        if (m && now - Module.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
+        Module.setStatus.last.time = now;
+        Module.setStatus.last.text = text;
+        if (m) {
+          text = m[1];
+          progressElement.value = parseInt(m[2]) * 100;
+          progressElement.max = parseInt(m[4]) * 100;
+          progressElement.hidden = false;
+          spinnerElement.hidden = false;
+        } else {
+          progressElement.value = null;
+          progressElement.max = null;
+          progressElement.hidden = true;
+          if (!text) spinnerElement.hidden = true;
+        }
+        statusElement.innerHTML = text;
+      },
+      totalDependencies: 0,
+      monitorRunDependencies: function (left) {
+        this.totalDependencies = Math.max(this.totalDependencies, left);
+        Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+      }
+    };
+    Module.setStatus('Downloading...');
+    window.onerror = function () {
+      Module.setStatus('Exception thrown, see JavaScript console');
+      spinnerElement.style.display = 'none';
+      Module.setStatus = function (text) {
+        if (text) Module.printErr('[post-exception status] ' + text);
       };
-    </script>
-    {{{ SCRIPT }}}
-  </body>
+    };
+  </script>
+  {{{ SCRIPT }}}
+</body>
+
 </html>
