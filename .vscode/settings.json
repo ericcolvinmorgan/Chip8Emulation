@@ -43,6 +43,9 @@
         "xtr1common": "cpp",
         "xutility": "cpp",
         "chrono": "cpp",
-        "sstream": "cpp"
+        "sstream": "cpp",
+        "cfenv": "cpp",
+        "complex": "cpp",
+        "ratio": "cpp"
     }
 }

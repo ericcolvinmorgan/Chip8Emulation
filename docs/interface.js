@@ -1,4 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
+    const gamePaused = 0;
+    const soundOn = 0;
     document.querySelector("#rom-dropdown").onchange = async (event) => {
         const gameSelection = event.target.options[event.target.selectedIndex];
         const response = await fetch(`./${gameSelection.value}`);
@@ -12,6 +14,16 @@ document.addEventListener("DOMContentLoaded", function () {
         else {
             console.log(`Unable to fetch requested game: ${response.statusText}`);
         }
+    }
+
+    document.querySelector("#paused").onclick = async (event) => {
+        gamePaused = !gamePaused;
+        console.log(`Game Paused: ${gamePaused}`);
+    }
+
+    document.querySelector("#soundOn").onclick = async (event) => {
+        soundOn = !soundOn;
+        console.log(`Sound On: ${soundOn}`);
     }
 });
 

@@ -61,7 +61,7 @@ wasmdev:
 	--preload-file ./build/FreeSans.ttf@fontset.ttf \
 	--preload-file ./LOADROM.ch8@LOADROM.ch8 \
 	-s EMIT_PRODUCERS_SECTION=1 \
-	-s EXPORTED_FUNCTIONS='["_main", "_loadROM", "_setTargetSpeed", "_dumpCPUDetail"]' \
+	-s EXPORTED_FUNCTIONS='["_main", "_loadROM", "_setTargetSpeed", "_setSoundOn", "_setPaused", "_dumpCPUDetail"]' \
 	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
 	-o ./build/index.html \
 	--shell-file ./web/interface.html
@@ -79,7 +79,7 @@ wasm:
 	-s USE_SDL_TTF=2 \
 	--preload-file ./build/FreeSans.ttf@fontset.ttf \
 	--preload-file ./LOADROM.ch8@LOADROM.ch8 \
-	-s EXPORTED_FUNCTIONS='["_main", "_loadROM", "_setTargetSpeed", "_dumpCPUDetail"]' \
+	-s EXPORTED_FUNCTIONS='["_main", "_loadROM", "_setTargetSpeed", "_setSoundOn", "_setPaused", "_dumpCPUDetail"]' \
 	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
 	-o ../docs/index.html \
 	--shell-file ./web/interface.html	

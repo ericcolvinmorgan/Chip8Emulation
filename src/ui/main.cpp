@@ -1,6 +1,3 @@
-/*This source code copyrighted by Lazy Foo' Productions (2004-2020)
-and may not be redistributed without written permission.*/
-
 //Using SDL and standard IO
 //#define __EMSCRIPTEN__
 #ifdef __EMSCRIPTEN__
@@ -35,54 +32,58 @@ Screen *gScreen;
 Sound *gSound;
 int gTimerSpeed = 60;
 int gTargetSpeed = 500;
-int gSoundOn = 0;
+bool gSoundOn = 0;
+bool gPaused = 0;
 bool gQuit = false;
 
 void runCycle()
 {
-	//Event handler
-	SDL_Event e;
-
-	//Handle events on queue
-	while (SDL_PollEvent(&e) != 0)
+	if (!gPaused)
 	{
-		// User requests quit
-		if (e.type == SDL_QUIT)
+		//Event handler
+		SDL_Event e;
+
+		//Handle events on queue
+		while (SDL_PollEvent(&e) != 0)
 		{
-			gQuit = true;
-		}
-		else
-		{
-			if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)
+			// User requests quit
+			if (e.type == SDL_QUIT)
 			{
-				for (int k = 0; k < 16; k++)
+				gQuit = true;
+			}
+			else
+			{
+				if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)
 				{
-					if (e.key.keysym.sym == mappedKeys[k])
+					for (int k = 0; k < 16; k++)
 					{
-						gCPU->setKeyPressed(k, (e.type == SDL_KEYDOWN));
+						if (e.key.keysym.sym == mappedKeys[k])
+						{
+							gCPU->setKeyPressed(k, (e.type == SDL_KEYDOWN));
+						}
 					}
 				}
 			}
 		}
-	}
 
-	//Process Command
-	int clockTicks = gTargetSpeed / currentFPS;
-	for (int i = 0; i < clockTicks; i++)
-	{
-		WORD opcode = gCPU->fetch();
-		gCPU->execute(opcode);
-	}
+		//Process Command
+		int clockTicks = gTargetSpeed / currentFPS;
+		for (int i = 0; i < clockTicks; i++)
+		{
+			WORD opcode = gCPU->fetch();
+			gCPU->execute(opcode);
+		}
 
-	//Update Timers
-	int timerTicks = gTimerSpeed / currentFPS;
-	for (int i = 0; i < timerTicks; i++)
-	{
-		gCPU->decrementDelayTimer(1);
-		gCPU->decrementSoundTimer(1);
-	}
+		//Update Timers
+		int timerTicks = gTimerSpeed / currentFPS;
+		for (int i = 0; i < timerTicks; i++)
+		{
+			gCPU->decrementDelayTimer(1);
+			gCPU->decrementSoundTimer(1);
+		}
 
-	gScreen->refreshScreen(gCPU->getScreenPixels());
+		gScreen->refreshScreen(gCPU->getScreenPixels());
+	}
 
 	totalFrames++;
 	double currentFPS = totalFrames / std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - startTime).count();
@@ -99,33 +100,34 @@ void runCycle()
 void runEmulator()
 {
 	gCPU->loadROM("LOADROM.ch8");
-	EM_ASM({
-		Interface.indexRegister = new Uint16Array(
-			Module.HEAPU8.buffer,
-			$0,
-			1);
+	EM_ASM(
+		{
+			Interface.indexRegister = new Uint16Array(
+				Module.HEAPU8.buffer,
+				$0,
+				1);
 
-		Interface.programCounter = new Uint16Array(
-			Module.HEAPU8.buffer,
-			$1,
-			1);
+			Interface.programCounter = new Uint16Array(
+				Module.HEAPU8.buffer,
+				$1,
+				1);
 
-		Interface.registers = new Uint8Array(
-			Module.HEAPU8.buffer,
-			$2,
-			16);
+			Interface.registers = new Uint8Array(
+				Module.HEAPU8.buffer,
+				$2,
+				16);
 
-		Interface.delayTimer = new Uint8Array(
-			Module.HEAPU8.buffer,
-			$3,
-			1);
+			Interface.delayTimer = new Uint8Array(
+				Module.HEAPU8.buffer,
+				$3,
+				1);
 
-		Interface.soundTimer = new Uint8Array(
-			Module.HEAPU8.buffer,
-			$4,
-			1);
-	},
-		   gCPU->getIndexRegister(), gCPU->getProgramCounter(), gCPU->getRegisters(), gCPU->getDelayTimer(), gCPU->getSoundTimer());
+			Interface.soundTimer = new Uint8Array(
+				Module.HEAPU8.buffer,
+				$4,
+				1);
+		},
+		gCPU->getIndexRegister(), gCPU->getProgramCounter(), gCPU->getRegisters(), gCPU->getDelayTimer(), gCPU->getSoundTimer());
 
 	emscripten_set_main_loop(runCycle, 0, 1);
 }
@@ -134,7 +136,7 @@ void runEmulator()
 {
 	//Main loop flag
 	gQuit = false;
-	gCPU->loadROM("./roms/TRIP8.ch8");
+	gCPU->loadROM("./roms/BRIX.ch8");
 
 	//While application is running
 	while (!gQuit)
@@ -154,6 +156,21 @@ extern "C"
 	void setTargetSpeed(int targetSpeed)
 	{
 		gTargetSpeed = targetSpeed;
+	}
+
+	void setSoundOn(int soundOn)
+	{
+		gSoundOn = soundOn;
+		gSound->stopAudio();
+		if(gSoundOn)
+		{
+			gSound->startAudio((bool *)gCPU->getSoundTimer());
+		}
+	}
+
+	void setPaused(int paused)
+	{
+		gPaused = paused;
 	}
 
 	void dumpCPUDetail(BYTE *const detail)
@@ -176,6 +193,10 @@ int main(int argc, char *args[])
 		gScreen = &screen;
 
 		Sound sound;
+		
+		if(gSoundOn)
+			sound.startAudio((bool *)cpu.getSoundTimer());
+
 		gSound = &sound;
 
 		runEmulator();
